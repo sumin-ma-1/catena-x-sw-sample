@@ -2,3 +2,4 @@
 
 - [코드 매뉴얼 보기](docs/CODE_MANUAL.md)
 - [운영 매뉴얼 보기](docs/OPERATIONS.md)
+- [예지보전 기능 보기](docs/PREDICTIVE_MAINTENANCE.md)

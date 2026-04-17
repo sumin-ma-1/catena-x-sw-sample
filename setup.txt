@@ -67,3 +67,32 @@ pip install -r requirements.txt
 ---- 가상환경 제거 (if needed) ----
 rm -Recurse -Force venv
 
+---- 4) ~ set DB URL for this terminal session ----
+$env:DATABASE_URL = "postgresql+psycopg2://catenax:catenax@localhost:5432/catenax"
+
+---- initialize schema (run once, safe to re-run) ----
+psql -U catenax -d catenax -f sql/001_init.sql
+
+---- when powershell can’t find psql.exe on your PATH ----
+$env:Path += ";C:\Program Files\PostgreSQL\18\bin"
+psql -U catenax -d catenax -f "sql/001_init.sql"
+
+---- run the API ----
+uvicorn server.app:app --host 0.0.0.0 --port 8080 --reload
+
+---- What should do while it runs ----
+Use a second terminal (keep server terminal open) and test the API:
+
+1. Health check
+    curl.exe http://localhost:8080/health
+2. Send sample telemetry
+    curl.exe -X POST http://localhost:8080/api/v1/cobot/telemetry -H "Content-Type: application/json" --data "@sample_telemetry.json"
+3. Read latest telemetry
+    curl.exe "http://localhost:8080/api/v1/cobot/telemetry/latest?robot_id=cobot-01"
+4. Read history
+    curl.exe "http://localhost:8080/api/v1/cobot/telemetry?robot_id=cobot-01&limit=20"
+
+---- Expected responses ----
+/health → {"status":"ok"}
+POST telemetry → {"accepted": true, "event_id": "..."}
+latest / history → JSON with stored payload(s)

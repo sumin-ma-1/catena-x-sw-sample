@@ -109,3 +109,8 @@ python3 edc.py sync-aas --telemetry-json sample_telemetry.json
 | `aas.py` | AAS Submodel 빌드 및 업서트 |
 | `edc.py` | EDC 자산, 정책, 계약 정의 등록 |
 | `sql/001_init.sql` | DB 스키마 생성 |
+
+## 관련 문서
+
+- [운영 매뉴얼](OPERATIONS.md)
+- [예지보전 기능 상세](PREDICTIVE_MAINTENANCE.md)

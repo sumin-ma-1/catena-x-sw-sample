@@ -7,6 +7,7 @@ from sqlalchemy import text
 from .db import SessionLocal
 from .schemas import TelemetryIn
 from .repository import upsert_telemetry
+from .predictive_maintenance import get_predictive_maintenance
 
 app = FastAPI(title="Catena-X Cobot Telemetry Server", version="1.0.0")
 
@@ -82,3 +83,16 @@ def history(
         ).mappings().all()
 
     return {"items": [dict(x) for x in rows]}
+
+
+@app.get("/api/v1/cobot/predictive-maintenance")
+def predictive_maintenance(
+    robot_id: str | None = None,
+    window_hours: int = Query(default=24, ge=1, le=24 * 30),
+    db: Session = Depends(get_db),
+):
+    return get_predictive_maintenance(
+        db,
+        robot_id=robot_id,
+        window_hours=window_hours,
+    )
