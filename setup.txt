@@ -1,0 +1,69 @@
+---- Catena-X cobot telemetry sample: local setup ----
+
+1) Prerequisites
+   - Python 3.10 or newer
+   - PostgreSQL (with createdb and psql, or create DB manually)
+
+2) Virtual environment (recommended)
+   Windows (PowerShell):
+     python -m venv .venv
+     .\.venv\Scripts\Activate.ps1
+   Linux / macOS:
+     python3 -m venv .venv
+     source .venv/bin/activate
+
+3) Install dependencies
+   From the repository root (this folder):
+     pip install -r requirements.txt
+
+4) Database
+   Create database and schema (adjust user/host if needed):
+     createdb catenax
+     psql catenax -f sql/001_init.sql
+   Default connection string matches server/db.py:
+     postgresql+psycopg2://catenax:catenax@localhost:5432/catenax
+   Ensure role "catenax" exists with password "catenax", or set DATABASE_URL.
+
+5) Environment variables (optional overrides)
+   API / DB:
+     DATABASE_URL=postgresql+psycopg2://catenax:catenax@localhost:5432/catenax
+   EDC CLI (edc.py onboard):
+     CATENAX_EDC_MANAGEMENT_URL=http://localhost:9191/management
+     CATENAX_EDC_API_KEY=<your-key>
+   AAS (edc.py sync-aas / aas.py):
+     CATENAX_AAS_BASE_URL=http://localhost:8081/shells/cobot-01
+     CATENAX_AAS_SUBMODEL_ID=urn:uuid:cobot-operational-data-submodel
+     CATENAX_AAS_API_KEY=<your-key>
+
+6) Run the API server
+   From repository root:
+     uvicorn server.app:app --host 0.0.0.0 --port 8080
+   Health check:
+     curl http://localhost:8080/health
+
+7) Smoke test (telemetry)
+   If "curl" in PowerShell is not real curl, use curl.exe.
+   One line:
+     curl.exe -X POST http://localhost:8080/api/v1/cobot/telemetry -H "Content-Type: application/json" --data @sample_telemetry.json
+
+8) Optional: EDC and AAS
+   See docs/CODE_MANUAL.md and docs/OPERATIONS.md for edc.py and AAS flows.
+
+---- 새 가상환경 생성 ----
+python 3.12.9 # 버전 다운로드 (없다면)
+py -3.12 -m venv venv # 위 버전의 파이썬에 새 가상환경 생성 (if needed)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process # 보안 정책 해제
+.\venv\Scripts\Activate.ps1 # 생성한 가상환경 활성화
+
+---- GPU 사용 (NVIDIA CUDA) ----
+# CUDA 버전에 맞는 torch wheel 설치 (예: CUDA 12.1)
+pip uninstall -y torch torchvision torchaudio # if already exists
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# 확인: python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+
+---- dependancy 다운로드 ----
+pip install -r requirements.txt
+
+---- 가상환경 제거 (if needed) ----
+rm -Recurse -Force venv
+
