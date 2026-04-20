@@ -6,63 +6,46 @@ This repository is a **stepping-stone sample**: a minimal **telemetry ingest + P
 
 ## Target architecture
 
-In a full Catena-X data space, the **center of gravity** is **not** “open the provider database to partners”. It is **two Eclipse Dataspace Components (EDC) connectors** mediating access under **identity, policies, and contracts**.
+In a full Catena-X data space, partners do **not** share raw database access.  
+They exchange data through **EDC connectors** under identity, policy, and contract control.
 
 ```mermaid
-flowchart LR
-  subgraph provider["Provider organization"]
-    PApp["Provider app / API"]
-    PDB[(Provider DB)]
-    PCon["EDC Provider Connector"]
-    PApp --> PDB
-    PCon --> PApp
-  end
+flowchart TB
+  Provider["Provider apps + DB"]
+  PCon["EDC Provider Connector"]
+  Ops["Catena-X Dataspace Ops\nCatalog + Policy + Contract"]
+  CCon["EDC Consumer Connector"]
+  Consumer["Consumer apps"]
 
-  subgraph center["Catena-X dataspace center"]
-    Gov["Catena-X / Dataspace operations\nCatalog + policy + contracts"]
-    Meta["Semantics / Asset metadata (optional)\nDTR + AAS"]
-  end
+  Provider --> PCon --> Ops --> CCon --> Consumer
 
-  subgraph consumer["Consumer organization"]
-    CCon["EDC Consumer Connector"]
-    CApp["Consumer app"]
-    CCon --> CApp
-  end
+  Identity["Identity / Membership\n(OIDC, BPN)"]
+  Identity --> PCon
+  Identity --> CCon
 
-  subgraph identity["Identity & participation"]
-    IdP["IdP / OIDC"]
-    BPN["Membership / BPN"]
-  end
-
-  IdP --> PCon
-  IdP --> CCon
-  BPN --> PCon
-  BPN --> CCon
-
-  PCon --> Gov
-  CCon --> Gov
-  Gov --> CCon
-
-  PCon --> Meta
-  Meta --> CCon
+  Semantics["Semantics / Asset metadata (optional)\nDTR + AAS"]
+  PCon -. references .-> Semantics
+  CCon -. resolves .-> Semantics
 ```
 
-**Roles in one sentence:** each side keeps its **systems of record**; **connectors** enforce **who may access what, for which purpose**, and optional **DTR/AAS** layers align **meaning** across companies.
+**One-line summary:** each company keeps its own systems; connectors enforce who can access which data for what purpose.
 
 ---
 
 ## End-to-end data flow
 
 ```mermaid
-flowchart LR
-  Edge["Shop floor"] --> ApiP["Provider ingest API"]
-  ApiP --> DbP[(Operational DB)]
-  ApiP -.->|"async publish"| Sem["AAS / aspect models"]
-  DbP --> Share["Provider data API"]
-  Share --> ConP["EDC Provider"]
-  ConP --> ConC["EDC Consumer"]
-  ConC --> AppC["Consumer app"]
-  Sem --> ConP
+flowchart TB
+  A["1) Shop floor sends telemetry"]
+  B["2) Provider ingest API validates and stores"]
+  C["3) Provider API exposes shareable endpoint"]
+  D["4) EDC Provider publishes asset + policy"]
+  E["5) EDC Consumer negotiates contract"]
+  F["6) Consumer app reads governed data"]
+  G["(Optional) semantic publish\nAAS / aspect model"]
+
+  A --> B --> C --> D --> E --> F
+  B -.-> G
 ```
 
 **Design goals this implies**
