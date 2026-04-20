@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -29,7 +29,8 @@ class TelemetryIn(BaseModel):
     reject_parts: int | None = None
     temperature_c: float | None = None
     vibration_mm_s: float | None = None
-    pose: dict[str, Any] | None = None
+    # Use structured pose so invalid coordinates fail at validation time (not silently as arbitrary JSON).
+    pose: Pose | None = None
     joint_positions_deg: list[float] | None = None
     alarms: list[str] | None = None
     produced_at: datetime | None = None

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""
+Telemetry domain service: validation, persistence, audit trail, and AAS sync queue.
+
+`server.app` should call `save_telemetry` for HTTP ingestion so behavior stays aligned
+with DB tables (`checksum_sha256`, `cobot_access_audit`, `cobot_aas_sync_status`).
+"""
+
 import hashlib
 import json
 from datetime import datetime, timezone

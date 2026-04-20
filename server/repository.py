@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+"""
+Legacy / direct SQL upsert path.
+
+HTTP ingestion uses `server.service.save_telemetry` instead, because it:
+- validates business rules,
+- writes checksum + audit + AAS sync queue,
+- skips latest/measurements when `event_id` is a duplicate.
+
+Keep this module for scripts or tests that need a minimal insert without those side tables.
+"""
+
 from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session

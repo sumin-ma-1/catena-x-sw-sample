@@ -1,5 +1,7 @@
 # 예지보전(Predictive Maintenance) 기능
 
+전체 아키텍처·실행 흐름은 저장소 루트 [readme.md](../readme.md)를 참고하세요.
+
 구현된 기능은 `GET /api/v1/cobot/predictive-maintenance` 입니다.
 점수 계산은 최근 `window_hours` 구간의 `cobot_measurements` 집계를 기반으로 합니다.
 
@@ -42,7 +44,19 @@
 curl.exe "http://localhost:8080/api/v1/cobot/predictive-maintenance?robot_id=cobot-01&window_hours=24"
 ```
 
-## 2) 예상 아웃풋
+## 2) 텔레메트리 수집 응답 (POST)
+
+`duplicate`는 동일 `event_id` 재전송 시 `true`입니다.
+
+```json
+{
+  "accepted": true,
+  "event_id": "2fab3d94-af07-4476-aa32-7c8881675faa",
+  "duplicate": false
+}
+```
+
+## 3) 예지보전 조회 예상 아웃풋
 
 `risk_score`(0~100), `risk_level`(low/medium/high), 그리고 원인 지표(온도/진동/fault 비율)를 반환합니다.
 
@@ -70,13 +84,13 @@ curl.exe "http://localhost:8080/api/v1/cobot/predictive-maintenance?robot_id=cob
 }
 ```
 
-## 3) 전체 데이터 흐름 (Flowchart TD)
+## 4) 전체 데이터 흐름 (Flowchart TD)
 
 ```mermaid
 flowchart TD
     A[Robot/PLC/Edge] -->|POST /api/v1/cobot/telemetry| B[FastAPI Ingestion]
     B --> C[Pydantic Validation]
-    C --> D[Repository Upsert]
+    C --> D[service.save_telemetry]
     D --> E[(cobot_telemetry_raw)]
     D --> F[(cobot_telemetry_latest)]
     D --> G[(cobot_measurements)]

@@ -4,10 +4,13 @@
 
 이 문서는 협동로봇 텔레메트리 수집 서버, PostgreSQL 저장소, AAS 동기화, EDC 자산 온보딩 예제의 운영 절차를 설명합니다.
 
+빠른 요약·다이어그램은 저장소 루트 [readme.md](../readme.md)를 참고하세요.
+
 구성 요소:
 
-- Telemetry API Server (`server/app.py`)
+- Telemetry API Server (`server/app.py`, 수집은 `server/service.py`)
 - PostgreSQL DB
+- 예지보전 조회 API (`GET /api/v1/cobot/predictive-maintenance`)
 - AAS Sync Client (`aas.py`)
 - EDC Onboarding CLI (`edc.py`)
 
@@ -22,16 +25,19 @@
 POST /api/v1/cobot/telemetry
         |
         v
-[FastAPI Server]
-   ├─ raw 저장
-   ├─ latest upsert
-   ├─ measurements 정규화
-   ├─ audit 기록
-   └─ aas_sync_status = PENDING
+[FastAPI: server.app]
         |
-        +--> [AAS Server] sync
+        v
+[service.save_telemetry]
+   ├─ raw 저장 (+ checksum)
+   ├─ latest upsert (신규 event일 때만)
+   ├─ measurements (신규 event일 때만)
+   ├─ audit 기록 (항상)
+   └─ aas_sync_status = PENDING (신규 event일 때만)
         |
-        +--> [EDC] asset / policy / contract definition
+        +--> [AAS Server] sync  (edc.py sync-aas / aas.py)
+        |
+        +--> [EDC] asset / policy / contract definition  (edc.py onboard)
 ```
 
 ## 3. 환경 변수
@@ -130,6 +136,16 @@ curl "http://localhost:8080/api/v1/cobot/telemetry?limit=20"
 ```bash
 curl "http://localhost:8080/api/v1/cobot/telemetry?robot_id=cobot-01&limit=50"
 ```
+
+### 5.4 예지보전 조회
+
+최근 `window_hours` 동안의 `cobot_measurements`를 집계합니다. (`produced_at` 기준 — 과거 시각만 있는 샘플은 빈 결과가 될 수 있음)
+
+```bash
+curl "http://localhost:8080/api/v1/cobot/predictive-maintenance?robot_id=cobot-01&window_hours=24"
+```
+
+상세는 [PREDICTIVE_MAINTENANCE.md](PREDICTIVE_MAINTENANCE.md)를 참고하세요.
 
 ## 6. EDC 운영 절차
 
