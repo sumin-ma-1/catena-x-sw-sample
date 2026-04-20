@@ -9,48 +9,42 @@ This repository is a **stepping-stone sample**: a minimal **telemetry ingest + P
 In a full Catena-X data space, the **center of gravity** is **not** “open the provider database to partners”. It is **two Eclipse Dataspace Components (EDC) connectors** mediating access under **identity, policies, and contracts**.
 
 ```mermaid
-flowchart TB
-  subgraph identity["Identity"]
-    IdP["OIDC / IdP"]
-    Mem["Membership / BPN"]
+flowchart LR
+  subgraph provider["Provider organization"]
+    PApp["Provider app / API"]
+    PDB[(Provider DB)]
+    PCon["EDC Provider Connector"]
+    PApp --> PDB
+    PCon --> PApp
   end
 
-  subgraph provider["Provider organization"]
-    DomP["Provider app + data API"]
-    DbP[(Provider data store)]
-    ConP["EDC (Provider)"]
-    DomP <--> DbP
-    ConP --> DomP
+  subgraph center["Catena-X dataspace center"]
+    Gov["Catena-X / Dataspace operations\nCatalog + policy + contracts"]
+    Meta["Semantics / Asset metadata (optional)\nDTR + AAS"]
   end
 
   subgraph consumer["Consumer organization"]
-    ConC["EDC (Consumer)"]
-    DomC["Consumer app"]
-    ConC --> DomC
+    CCon["EDC Consumer Connector"]
+    CApp["Consumer app"]
+    CCon --> CApp
   end
 
-  subgraph semantics["Optional semantics"]
-    DTR["DTR"]
-    AAS["AAS"]
+  subgraph identity["Identity & participation"]
+    IdP["IdP / OIDC"]
+    BPN["Membership / BPN"]
   end
 
-  subgraph governance["Dataspace governance"]
-    Gov["Catalog + policy + contracts"]
-  end
+  IdP --> PCon
+  IdP --> CCon
+  BPN --> PCon
+  BPN --> CCon
 
-  IdP --> ConP
-  IdP --> ConC
-  Mem --> ConP
-  Mem --> ConC
+  PCon --> Gov
+  CCon --> Gov
+  Gov --> CCon
 
-  ConP <-->|"Negotiation + transfer"| ConC
-  ConP -.->|"Publish asset/policy"| Gov
-  ConC -.->|"Discover + negotiate"| Gov
-
-  ConP -.->|"semantic refs"| DTR
-  ConP -.->|"semantic refs"| AAS
-  ConC -.->|"resolve semantics"| DTR
-  ConC -.->|"resolve semantics"| AAS
+  PCon --> Meta
+  Meta --> CCon
 ```
 
 **Roles in one sentence:** each side keeps its **systems of record**; **connectors** enforce **who may access what, for which purpose**, and optional **DTR/AAS** layers align **meaning** across companies.

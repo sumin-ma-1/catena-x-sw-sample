@@ -4,7 +4,7 @@
 
 이 문서는 협동로봇 텔레메트리 수집 서버, PostgreSQL 저장소, AAS 동기화, EDC 자산 온보딩 예제의 운영 절차를 설명합니다.
 
-목표 아키텍처·요약은 저장소 루트 [readme.md](../readme.md) (영문, Catena-X north star)를 참고하세요.
+전체 아키텍처·요약은 저장소 루트 [readme.md](../readme.md) (Eng, Catena-X)를 참고하세요.
 
 구성 요소:
 
