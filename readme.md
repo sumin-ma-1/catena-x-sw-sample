@@ -1,22 +1,123 @@
 # Catena-X Cobot Telemetry Sample
 
-협동로봇 텔레메트리를 **PostgreSQL**에 저장하고, **REST API**로 조회·예지보전 집계를 제공하는 예제입니다. **EDC / AAS** 연동은 선택(별도 CLI·서비스 필요)입니다.
+This repository is a **stepping-stone sample**: a minimal **telemetry ingest + PostgreSQL + REST** service. The sections below describe the **intended end-state** for a production-grade, Catena-X–aligned deployment—not only what is wired today.
 
-## 전체 구성 (코드·모듈)
+---
+
+## Target architecture
+
+In a full Catena-X data space, the **center of gravity** is **not** “open the provider database to partners”. It is **two Eclipse Dataspace Components (EDC) connectors** mediating access under **identity, policies, and contracts**.
 
 ```mermaid
 flowchart TB
-  subgraph clients["클라이언트"]
-    Edge["로봇 / PLC / Edge"]
-    Ops["운영·테스트 curl"]
+  subgraph identity["Identity & participation"]
+    IdP["IdP / OIDC\n(e.g. Keycloak)"]
+    Mem["Membership / BPN registry\n(who may join the dataspace)"]
   end
 
-  subgraph server["Python 패키지 server"]
-    App["app.py\nHTTP 라우트"]
-    Svc["service.py\n수집·검증·감사·AAS 큐"]
-    PM["predictive_maintenance.py\n집계·리스크 점수"]
-    Sch["schemas.py\n입력 검증"]
-    Repo["repository.py\n최소 upsert\n(HTTP 비사용)"]
+  subgraph provider["Provider organization"]
+    DomP["Domain applications\n(MES / SCADA / telemetry API)"]
+    DbP[(Operational datastore)]
+    ConP["EDC Provider Connector"]
+    DomP --> DbP
+    ConP --> DomP
+  end
+
+  subgraph consumer["Consumer organization"]
+    DomC["Domain applications\n(planning / analytics)"]
+    ConC["EDC Consumer Connector"]
+    ConC --> DomC
+  end
+
+  subgraph semantics["Semantics & digital twin (as needed)"]
+    DTR["DTR / twin registry"]
+    AAS["AAS repositories"]
+  end
+
+  subgraph governance["Dataspace governance"]
+    Gov["Catalog, policies,\ncontract templates"]
+  end
+
+  IdP --> ConP
+  IdP --> ConC
+  Mem --> ConP
+  Mem --> ConC
+
+  ConP <-->|"Contract negotiation\n& controlled data plane"| ConC
+  ConP -.->|"Asset & policy registration"| Gov
+  ConC -.->|"Discovery & negotiation"| Gov
+
+  ConP -.-> DTR
+  ConC -.-> DTR
+  ConP -.-> AAS
+  ConC -.-> AAS
+```
+
+**Roles in one sentence:** each side keeps its **systems of record**; **connectors** enforce **who may access what, for which purpose**, and optional **DTR/AAS** layers align **meaning** across companies.
+
+---
+
+## Target end-to-end data flow (ideal)
+
+```mermaid
+flowchart LR
+  Edge["Shop floor\n(robot / PLC)"] --> ApiP["Provider domain API\n(telemetry ingress)"]
+  ApiP --> DbP[(Store & historize)]
+  DbP --> ConP["Provider EDC"]
+  ConP --> ConC["Consumer EDC"]
+  ConC --> AppC["Consumer apps"]
+  ApiP -.->|"Async / outbox"| Twin["AAS / aspect models\n(semantic publish)"]
+  Twin --> ConP
+```
+
+**Design goals this implies**
+
+- **Decouple** “fast ingest” from “governed share”: commit operational data first; publish/share via **EDC contracts** and optional **semantic** pipelines.
+- **Never** expose raw DB credentials to partners; expose **contract-bound** interfaces (HTTP, streaming, etc.) through the connector.
+- **Observability & audit**: correlate `request_id`, `event_id`, connector transfer logs, and policy decisions.
+
+---
+
+## Evolution: from this sample to production
+
+| Area | Today (sample) | Target |
+|------|------------------|--------|
+| Share | Manual `edc.py` / `aas.py` CLI | **Automated** publish: outbox/worker, idempotent AAS updates, minimal synchronous coupling |
+| Security | Open HTTP APIs | **AuthN/Z** (API keys, mTLS, OAuth2), rate limits, secret management |
+| Data | Single Postgres | Migrations, retention, partitioning, backups |
+| Ops | Basic health | Metrics, tracing, structured logging, SLOs |
+| Semantics | Example submodel | **SAMM / aspect models** aligned with your use case |
+
+---
+
+## This repository today (what actually ships)
+
+- **Runtime:** FastAPI (`server/app.py`) + `server/service.save_telemetry` (checksum, audit, duplicate handling, AAS sync queue row) + read APIs + heuristic **predictive maintenance** query.
+- **Catena-X:** EDC/AAS are **optional** operator workflows (`edc.py`, `aas.py`); they are **not** invoked automatically on every HTTP request in the current code.
+
+Operational steps (DB init, `uvicorn`, curls) are kept short in **[setup.txt](setup.txt)** and detailed in **[docs/CODE_MANUAL.md](docs/CODE_MANUAL.md)** / **[docs/OPERATIONS.md](docs/OPERATIONS.md)** (Korean). Predictive maintenance: **[docs/PREDICTIVE_MAINTENANCE.md](docs/PREDICTIVE_MAINTENANCE.md)**.
+
+**Predictive maintenance note:** aggregates use `produced_at` within `window_hours`. Historical `produced_at` in sample JSON may fall outside the window and return empty `items`; omit `produced_at` to let the server stamp “now”.
+
+---
+
+## Appendix — sample codebase layout (as implemented)
+
+For a file-level view of the **current** Python layout and DB tables, use this diagram when reading the code (not the long-term Catena-X figure above).
+
+```mermaid
+flowchart TB
+  subgraph clients["Clients"]
+    Edge["Robot / PLC / edge"]
+    Ops["curl / tests"]
+  end
+
+  subgraph py["Python package server"]
+    App["app.py"]
+    Svc["service.py"]
+    PM["predictive_maintenance.py"]
+    Sch["schemas.py"]
+    Repo["repository.py\n(legacy minimal upsert)"]
   end
 
   subgraph pg["PostgreSQL"]
@@ -27,14 +128,12 @@ flowchart TB
     SyncQ["cobot_aas_sync_status"]
   end
 
-  subgraph opt["선택: Catena-X"]
+  subgraph opt["Optional Catena-X CLI"]
     EDCCli["edc.py"]
     AASMod["aas.py"]
-    EDC["EDC"]
-    AAS["AAS 서버"]
   end
 
-  Edge -->|POST /telemetry| App
+  Edge -->|POST| App
   Ops -->|GET| App
   App --> Sch
   App --> Svc
@@ -45,78 +144,13 @@ flowchart TB
   Svc --> Audit
   Svc --> SyncQ
   PM --> Meas
-  EDCCli --> EDC
   EDCCli --> AASMod
-  AASMod --> AAS
 ```
-
-## 데이터 워크플로
-
-```mermaid
-flowchart TD
-  A["① POST /api/v1/cobot/telemetry\nJSON 바디"] --> B["② Pydantic 검증\nschemas.TelemetryIn"]
-  B --> C["③ service.save_telemetry\n비즈니스 검증"]
-  C --> D{"event_id\n신규?"}
-  D -->|예| E["raw INSERT\nchecksum 포함"]
-  E --> F["latest UPSERT\n시간 비교"]
-  E --> G["measurements INSERT"]
-  E --> H["aas_sync_status PENDING"]
-  D -->|아니오 중복| I["latest / measurements\n스킵"]
-  C --> J["항상 audit INSERT"]
-  E --> K["④ 커밋\nget_db"]
-  I --> K
-  J --> K
-
-  K --> L["⑤ GET /api/v1/cobot/telemetry/latest\nGET /api/v1/cobot/telemetry"]
-  L --> M["DB에서 조회\nget_db_read"]
-
-  K --> N["⑥ GET /api/v1/cobot/predictive-maintenance"]
-  N --> O["최근 window_hours\nproduced_at 기준\nmeasurements 집계"]
-  O --> P["risk_score / risk_level\nJSON 응답"]
-```
-
-**예지보전 주의:** 집계는 `produced_at`이 **현재 시각 기준 `window_hours` 이내**인 행만 포함합니다. 샘플 JSON에 과거 시각만 넣으면 DB에는 있어도 최근 창에서는 **빈 결과**가 나올 수 있습니다. (`produced_at` 생략 시 서버가 현재 시각을 채움)
 
 ---
 
-## 빠른 실행 (로컬)
+## Documentation
 
-| 단계 | 할 일 |
-|------|--------|
-| 1 | Python 3.10+, PostgreSQL 준비 |
-| 2 | `pip install -r requirements.txt` (저장소 루트) |
-| 3 | DB·스키마: `createdb catenax` 후 `psql … -f sql/001_init.sql` |
-| 4 | `DATABASE_URL` 설정(미설정 시 `server/db.py` 기본값 사용) |
-| 5 | `uvicorn server.app:app --host 0.0.0.0 --port 8080` |
-
-PowerShell 예시:
-
-```powershell
-$env:DATABASE_URL = "postgresql+psycopg2://catenax:catenax@localhost:5432/catenax"
-uvicorn server.app:app --host 0.0.0.0 --port 8080
-```
-
-`psql`이 PATH에 없으면 PostgreSQL 설치 경로의 `psql.exe` 전체 경로를 사용합니다. 자세한 단계는 [setup.txt](setup.txt)를 참고하세요.
-
----
-
-## 실행 후 과정·결과 (요약)
-
-1. **헬스** `GET /health` → `{"status":"ok"}` 이면 API 기동 완료.
-2. **수집** `POST /api/v1/cobot/telemetry` + JSON  
-   - **과정:** 검증 → `save_telemetry` → (신규 `event_id`일 때만) raw / latest / measurements / AAS 대기행, 항상 감사 로그.  
-   - **결과:** `{"accepted": true, "event_id": "…", "duplicate": false}` — 동일 `event_id` 재전송 시 `"duplicate": true`이고 측정·최신 테이블은 다시 쓰지 않음.  
-   - 검증 실패 시 **HTTP 400** (`detail` 메시지).
-3. **최신** `GET /api/v1/cobot/telemetry/latest` (선택 `?robot_id=`) → 최신 payload 등. 단일 로봇 없으면 **404**.
-4. **이력** `GET /api/v1/cobot/telemetry?limit=20` → raw 이력 목록.
-5. **예지보전** `GET /api/v1/cobot/predictive-maintenance?window_hours=24&robot_id=…` → 최근 구간 집계·`risk_score` 등. 상세·예시는 [docs/PREDICTIVE_MAINTENANCE.md](docs/PREDICTIVE_MAINTENANCE.md).
-
-**선택:** EDC 온보딩·AAS 동기는 [docs/CODE_MANUAL.md](docs/CODE_MANUAL.md)의 `edc.py` / `aas.py` 절차를 따릅니다.
-
----
-
-## 문서
-
-- [코드 매뉴얼](docs/CODE_MANUAL.md) — 모듈·실행 순서·EDC/AAS
-- [운영 매뉴얼](docs/OPERATIONS.md) — 환경 변수·운영 절차·응답 예시
-- [예지보전](docs/PREDICTIVE_MAINTENANCE.md) — 입력·출력·Mermaid
+- [CODE_MANUAL.md](docs/CODE_MANUAL.md) — modules, run order, EDC/AAS CLI
+- [OPERATIONS.md](docs/OPERATIONS.md) — env vars, operations, example responses
+- [PREDICTIVE_MAINTENANCE.md](docs/PREDICTIVE_MAINTENANCE.md) — inputs, outputs, diagram
