@@ -4,7 +4,7 @@
 
 텔레메트리를 **PostgreSQL**에 넣고 **REST**로 조회합니다. HTTP 수집은 **`server.service.save_telemetry` 단일 경로**입니다. **EDC·AAS**는 선택 CLI(`edc.py`, `aas.py`)입니다.
 
-전체 구성·데이터 흐름은 저장소 루트 [readme.md](../readme.md)의 Mermaid를 먼저 보세요.
+Catena-X **아키텍처(Eng)**·로드맵은 저장소 루트 [readme.md](../readme.md) 상단을 보세요. **현재 샘플 코드 레이아웃**은 readme **Appendix** Mermaid를 참고하세요.
 
 ---
 

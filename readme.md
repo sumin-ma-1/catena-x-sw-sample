@@ -10,32 +10,32 @@ In a full Catena-X data space, the **center of gravity** is **not** “open the 
 
 ```mermaid
 flowchart TB
-  subgraph identity["Identity & participation"]
-    IdP["IdP / OIDC\n(e.g. Keycloak)"]
-    Mem["Membership / BPN registry\n(who may join the dataspace)"]
+  subgraph identity["Identity"]
+    IdP["OIDC / IdP"]
+    Mem["Membership / BPN"]
   end
 
   subgraph provider["Provider organization"]
-    DomP["Domain applications\n(MES / SCADA / telemetry API)"]
-    DbP[(Operational datastore)]
-    ConP["EDC Provider Connector"]
-    DomP --> DbP
+    DomP["Provider app + data API"]
+    DbP[(Provider data store)]
+    ConP["EDC (Provider)"]
+    DomP <--> DbP
     ConP --> DomP
   end
 
   subgraph consumer["Consumer organization"]
-    DomC["Domain applications\n(planning / analytics)"]
-    ConC["EDC Consumer Connector"]
+    ConC["EDC (Consumer)"]
+    DomC["Consumer app"]
     ConC --> DomC
   end
 
-  subgraph semantics["Semantics & digital twin (as needed)"]
-    DTR["DTR / twin registry"]
-    AAS["AAS repositories"]
+  subgraph semantics["Optional semantics"]
+    DTR["DTR"]
+    AAS["AAS"]
   end
 
   subgraph governance["Dataspace governance"]
-    Gov["Catalog, policies,\ncontract templates"]
+    Gov["Catalog + policy + contracts"]
   end
 
   IdP --> ConP
@@ -43,31 +43,32 @@ flowchart TB
   Mem --> ConP
   Mem --> ConC
 
-  ConP <-->|"Contract negotiation\n& controlled data plane"| ConC
-  ConP -.->|"Asset & policy registration"| Gov
-  ConC -.->|"Discovery & negotiation"| Gov
+  ConP <-->|"Negotiation + transfer"| ConC
+  ConP -.->|"Publish asset/policy"| Gov
+  ConC -.->|"Discover + negotiate"| Gov
 
-  ConP -.-> DTR
-  ConC -.-> DTR
-  ConP -.-> AAS
-  ConC -.-> AAS
+  ConP -.->|"semantic refs"| DTR
+  ConP -.->|"semantic refs"| AAS
+  ConC -.->|"resolve semantics"| DTR
+  ConC -.->|"resolve semantics"| AAS
 ```
 
 **Roles in one sentence:** each side keeps its **systems of record**; **connectors** enforce **who may access what, for which purpose**, and optional **DTR/AAS** layers align **meaning** across companies.
 
 ---
 
-## Target end-to-end data flow (ideal)
+## End-to-end data flow
 
 ```mermaid
 flowchart LR
-  Edge["Shop floor\n(robot / PLC)"] --> ApiP["Provider domain API\n(telemetry ingress)"]
-  ApiP --> DbP[(Store & historize)]
-  DbP --> ConP["Provider EDC"]
-  ConP --> ConC["Consumer EDC"]
-  ConC --> AppC["Consumer apps"]
-  ApiP -.->|"Async / outbox"| Twin["AAS / aspect models\n(semantic publish)"]
-  Twin --> ConP
+  Edge["Shop floor"] --> ApiP["Provider ingest API"]
+  ApiP --> DbP[(Operational DB)]
+  ApiP -.->|"async publish"| Sem["AAS / aspect models"]
+  DbP --> Share["Provider data API"]
+  Share --> ConP["EDC Provider"]
+  ConP --> ConC["EDC Consumer"]
+  ConC --> AppC["Consumer app"]
+  Sem --> ConP
 ```
 
 **Design goals this implies**
@@ -109,23 +110,23 @@ For a file-level view of the **current** Python layout and DB tables, use this d
 flowchart TB
   subgraph clients["Clients"]
     Edge["Robot / PLC / edge"]
-    Ops["curl / tests"]
+    Ops["Ops / tests"]
   end
 
-  subgraph py["Python package server"]
-    App["app.py"]
-    Svc["service.py"]
+  subgraph py["server package"]
+    App["app.py (routes)"]
+    Sch["schemas.py (validation)"]
+    Svc["service.py (ingest)"]
     PM["predictive_maintenance.py"]
-    Sch["schemas.py"]
-    Repo["repository.py\n(legacy minimal upsert)"]
+    Repo["repository.py (legacy)"]
   end
 
   subgraph pg["PostgreSQL"]
-    Raw["cobot_telemetry_raw"]
-    Latest["cobot_telemetry_latest"]
-    Meas["cobot_measurements"]
-    Audit["cobot_access_audit"]
-    SyncQ["cobot_aas_sync_status"]
+    Raw["raw"]
+    Latest["latest"]
+    Meas["measurements"]
+    Audit["audit"]
+    SyncQ["aas_sync_status"]
   end
 
   subgraph opt["Optional Catena-X CLI"]
@@ -133,8 +134,8 @@ flowchart TB
     AASMod["aas.py"]
   end
 
-  Edge -->|POST| App
-  Ops -->|GET| App
+  Edge -->|POST telemetry| App
+  Ops -->|GET APIs| App
   App --> Sch
   App --> Svc
   App --> PM

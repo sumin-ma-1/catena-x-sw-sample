@@ -1,6 +1,6 @@
 # 예지보전(Predictive Maintenance) 기능
 
-전체 아키텍처·실행 흐름은 저장소 루트 [readme.md](../readme.md)를 참고하세요.
+Catena-X 아키텍처·로드맵은 저장소 루트 [readme.md](../readme.md) (Eng)를 참고하세요.
 
 구현된 기능은 `GET /api/v1/cobot/predictive-maintenance` 입니다.
 점수 계산은 최근 `window_hours` 구간의 `cobot_measurements` 집계를 기반으로 합니다.
