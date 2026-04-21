@@ -1,0 +1,46 @@
+services:
+  edc-provider:
+    image: tractusx/edc-runtime-memory:latest
+    container_name: edc-provider
+    restart: unless-stopped
+    environment:
+      # Logical connector identity.
+      EDC_PARTICIPANT_ID: provider
+      # Management API key used by edc.py onboard.
+      EDC_API_AUTH_KEY: ${PROVIDER_API_KEY:-provider-secret-123}
+      # Public callback address used during negotiation.
+      EDC_DSP_CALLBACK_ADDRESS: http://localhost:8182/protocol
+      # HTTP endpoints exposed by this runtime.
+      WEB_HTTP_PORT: 8181
+      WEB_HTTP_PATH: /api
+      WEB_HTTP_MANAGEMENT_PORT: 9191
+      WEB_HTTP_MANAGEMENT_PATH: /management
+      WEB_HTTP_PROTOCOL_PORT: 8182
+      WEB_HTTP_PROTOCOL_PATH: /protocol
+    ports:
+      - "8181:8181"
+      - "8182:8182"
+      - "9191:9191"
+
+  edc-consumer:
+    image: tractusx/edc-runtime-memory:latest
+    container_name: edc-consumer
+    restart: unless-stopped
+    environment:
+      # Logical connector identity.
+      EDC_PARTICIPANT_ID: consumer
+      # Management API key used by edc.py discover/exchange.
+      EDC_API_AUTH_KEY: ${CONSUMER_API_KEY:-consumer-secret-123}
+      # Public callback address used during negotiation.
+      EDC_DSP_CALLBACK_ADDRESS: http://localhost:8183/protocol
+      # HTTP endpoints exposed by this runtime.
+      WEB_HTTP_PORT: 8184
+      WEB_HTTP_PATH: /api
+      WEB_HTTP_MANAGEMENT_PORT: 9192
+      WEB_HTTP_MANAGEMENT_PATH: /management
+      WEB_HTTP_PROTOCOL_PORT: 8183
+      WEB_HTTP_PROTOCOL_PATH: /protocol
+    ports:
+      - "8184:8184"
+      - "8183:8183"
+      - "9192:9192"
